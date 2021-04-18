@@ -1,0 +1,5 @@
+hostapd dnsmasq iptables nginx 
+sudo systemctl unmask hostapd
+sudo systemctl disable hostapd
+sudo systemctl disable dnsmasq
+sudo systemctl enable nftables
