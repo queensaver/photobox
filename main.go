@@ -26,6 +26,7 @@ func makeImage(device string) {
 		"--set", "Brightness=30",
 		"--set", "Sharpness=5",
 		"-D", "1",
+		"-S", "20",
 		fmt.Sprintf("%d.jpg", t))
 	fmt.Println("executing ", cmd)
 	stdout, err := cmd.StdoutPipe()
