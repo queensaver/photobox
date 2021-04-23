@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -14,10 +15,10 @@ import (
 
 var webcamLock bool
 var captivePortalLock bool
+var imageDirectory = flag.String("image_directory", "images", "Image directory for the webcam files.")
 
-func makeImage(device string) {
+func makeImage(device string, camera int, done chan bool) {
 	var err error
-	// fswebcam -r 4656x3496 --jpeg 95 --set Brightness=30 --set Sharpness=5 ${DATE}.jpg
 	t := time.Now().UTC().Unix()
 	cmd := exec.Command("/usr/bin/fswebcam",
 		"--device", device,
@@ -27,45 +28,58 @@ func makeImage(device string) {
 		"--set", "Sharpness=5",
 		"-D", "1",
 		"-S", "20",
-		fmt.Sprintf("%d.jpg", t))
+		fmt.Sprintf("%s/%d-%d.jpg", *imageDirectory, t, camera))
 	fmt.Println("executing ", cmd)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		done <- true
 		return
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
+		done <- true
 		return
 	}
 	if err := cmd.Start(); err != nil {
 		stderrBuf, err := io.ReadAll(stderr)
 		if err != nil {
+			done <- true
 			return
 		}
 		fmt.Println("StdErr Output: ", string(stderrBuf))
+		done <- true
 		return
 	}
 	buf, err := io.ReadAll(stdout)
 	fmt.Println("StdOut: ", string(buf))
 	if err != nil {
+		done <- true
 		return
 	}
 
 	stderrBuf, err := io.ReadAll(stderr)
 	if err != nil {
+		done <- true
 		return
 	}
 
 	if err := cmd.Wait(); err != nil {
+		done <- true
 		return
 	}
 	fmt.Println("StdErr Output: ", string(stderrBuf))
+	done <- true
 }
 
 func captureFromWebcam() {
-	makeImage("/dev/video0")
-	makeImage("/dev/video2")
+	video0 := make(chan bool)
+	video2 := make(chan bool)
+	go makeImage("/dev/video0", 0, video0)
+	go makeImage("/dev/video2", 1, video2)
+	<-video0
+	<-video2
 	webcamLock = false
+	fmt.Println("done capturing images.")
 }
 
 func captivePortal() {
@@ -99,6 +113,7 @@ func shutDown() {
 }
 
 func main() {
+	flag.Parse()
 	// Load all the drivers:
 	if _, err := host.Init(); err != nil {
 		log.Fatal(err)

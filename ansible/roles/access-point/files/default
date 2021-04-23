@@ -48,6 +48,12 @@ server {
 	location / {
 		return 301 http://hello.queensaver.com/;
 	}
+	location /images/ {
+		alias /home/pi/images/;
+		autoindex on;
+		sendfile on;
+		tcp_nopush on;
+	}
 }
 
 

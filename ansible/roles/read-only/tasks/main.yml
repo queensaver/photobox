@@ -1,0 +1,82 @@
+# instructions from: https://medium.com/swlh/make-your-raspberry-pi-file-system-read-only-raspbian-buster-c558694de79
+- name: add tmpfs to fstab
+  blockinfile:
+    path: /etc/fstab
+    block: |
+      tmpfs        /tmp            tmpfs   nosuid,nodev         0       0
+      tmpfs        /var/log        tmpfs   nosuid,nodev         0       0
+      tmpfs        /var/spool      tmpfs   nosuid,nodev         0       0
+      tmpfs        /var/tmp        tmpfs   nosuid,nodev         0       0
+      tmpfs        /home/pi/bOS    tmpfs   nosuid,nodev         0       0
+
+- name: create bOS directory
+  file:
+    path: /home/pi/bOS
+    state: directory
+    owner: pi
+
+- name: remove unnecessary packages
+  apt:
+    name:
+    - triggerhappy
+    - logrotate
+    - dphys-swapfile
+    - rsyslog
+    - avahi-daemon
+    state: absent
+    purge: yes
+    update_cache: yes
+    autoremove: yes
+
+- name: Disable swap and filesystem check and set it to read-only
+  lineinfile:
+    regexp: '^(.*)rootwait$'
+    line: '\1 rootwait fastboot noswap ro'
+    path: /boot/cmdline.txt
+    backrefs: yes
+
+- name: install busybox-syslogd
+  apt:
+    name:
+    - busybox-syslogd
+    state: present
+
+- name: delete directories and files
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+  - /var/lib/dhcp 
+  - /var/lib/dhcpcd5 
+  - /etc/resolv.conf
+  - /var/lib/systemd/random-seed
+
+- name: set symlink
+  file:
+    dest: "{{ item }}"
+    src: /tmp
+    state: link
+    force: yes
+  with_items:
+  - /var/lib/dhcp
+  - /var/lib/dhcp5
+    
+- name: resolv.conf
+  file:
+    dest: /etc/resolv.conf
+    src: /tmp/dhcpd.resolv.conf
+    state: link
+    force: yes
+
+- name: random-seed
+  file:
+    dest: /var/lib/systemd/random-seed
+    src: /tmp/random-seed
+    state: link
+    force: yes
+
+- name: edit random-seed.service
+  blockinfile:
+    path: /lib/systemd/system/systemd-random-seed.service
+    block: |
+      ExecStartPre=/usr/bin/touch /tmp/random-seed
