@@ -5,7 +5,8 @@ After=systemd-user-sessions.service
 After=network-online.target
 
 [Service]
-ExecStart=/home/pi/photobox
+ExecStartPre=/usr/bin/mkdir -p /home/pi/images
+ExecStart=/home/pi/photobox 
 Restart=always
 RestartSec=60
 
