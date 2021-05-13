@@ -38,17 +38,16 @@ func (r *RFID) LedOff() {
 }
 
 func (r *RFID) Close() {
-  r.spi.Close()
 	r.rfid.Halt()
+  r.spi.Close()
 }
 
 func (r *RFID) ReadID() (string, error) {
-  data, err := r.rfid.ReadUID(10*time.Second)
+  data, err := r.rfid.ReadUID(120*time.Second)
   if err != nil {
     return "", err
   }
   ret := hex.EncodeToString(data)
-  log.Printf(ret)
   return ret, nil
 }
 

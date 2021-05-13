@@ -11,7 +11,7 @@ import (
 	"periph.io/x/conn/v3/gpio"
 	"periph.io/x/conn/v3/gpio/gpioreg"
 	"periph.io/x/host/v3"
-	"github.com/queensaver/photobox/rfid/rfid"
+	"github.com/queensaver/photobox/rfid"
 )
 
 var webcamLock bool
@@ -155,8 +155,30 @@ func buttonListener() {
 }
 
 func rfidListener() {
-  r := rfid{}
-  r.Init()
+  r := rfid.RFID{}
+  var old_id string
+  for {
+    r.Init()
+    r.LedOn()
+    id, err := r.ReadID()
+    if err != nil {
+      log.Println(err)
+      r.Close()
+      continue
+    }
+    if id == old_id {
+      log.Println("doing nothing, same id")
+      time.Sleep(1 * time.Second)
+      r.Close()
+      continue
+    }
+    log.Println(id)
+    r.LedOff()
+    webcamLock = true
+    captureFromWebcam()
+    old_id = id
+    r.Close()
+  }
 }
 
 func main() {
@@ -167,4 +189,5 @@ func main() {
 	}
   go buttonListener()
   go rfidListener()
+  select{}
 }
