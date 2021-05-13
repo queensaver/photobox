@@ -11,7 +11,7 @@ import (
 	"periph.io/x/conn/v3/gpio"
 	"periph.io/x/conn/v3/gpio/gpioreg"
 	"periph.io/x/host/v3"
-	"github.com/queensaver/photobox/rfid"
+	"github.com/queensaver/photobox/rfid/rfid"
 )
 
 var webcamLock bool
@@ -113,7 +113,7 @@ func shutDown() {
 	// TODO: OS.Exit()
 }
 
-func button() {
+func buttonListener() {
 	// Lookup a pin by its number:
 	p := gpioreg.ByName("GPIO17")
 	if p == nil {
@@ -154,12 +154,17 @@ func button() {
 	}
 }
 
+func rfidListener() {
+  r := rfid{}
+  r.Init()
+}
+
 func main() {
 	flag.Parse()
 	// Load all the drivers:
 	if _, err := host.Init(); err != nil {
 		log.Fatal(err)
 	}
-  go button()
-  go rfid()
+  go buttonListener()
+  go rfidListener()
 }
