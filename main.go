@@ -7,6 +7,7 @@ import (
 	"log"
 	"os/exec"
 	"time"
+  "sync"
 
 	"periph.io/x/conn/v3/gpio"
 	"periph.io/x/conn/v3/gpio/gpioreg"
@@ -14,13 +15,12 @@ import (
 	"github.com/queensaver/photobox/rfid"
 )
 
-var webcamLock bool
+var webcamLock sync.Mutex
 var captivePortalLock bool
 var imageDirectory = flag.String("image_directory", "images", "Image directory for the webcam files.")
 
-func makeImage(device string, camera int, done chan bool) {
+func makeImage(device string, camera int, filename string, done chan bool) {
 	var err error
-	t := time.Now().UTC().Unix()
 	cmd := exec.Command("/usr/bin/fswebcam",
 		"--device", device,
 		"-r", "4656x3496",
@@ -29,7 +29,7 @@ func makeImage(device string, camera int, done chan bool) {
 		"--set", "Sharpness=5",
 		"-D", "1",
 		"-S", "20",
-		fmt.Sprintf("%s/%d-%d.jpg", *imageDirectory, t, camera))
+		fmt.Sprintf("%s/%s-%d.jpg", *imageDirectory, filename, camera))
 	fmt.Println("executing ", cmd)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -72,14 +72,14 @@ func makeImage(device string, camera int, done chan bool) {
 	done <- true
 }
 
-func captureFromWebcam() {
+func captureFromWebcam(filename string) {
 	video0 := make(chan bool)
 	video2 := make(chan bool)
-	go makeImage("/dev/video0", 0, video0)
-	go makeImage("/dev/video2", 1, video2)
+	go makeImage("/dev/video0", 0, filename, video0)
+	go makeImage("/dev/video2", 1, filename, video2)
 	<-video0
 	<-video2
-	webcamLock = false
+	webcamLock.Unlock()
 	fmt.Println("done capturing images.")
 }
 
@@ -138,10 +138,9 @@ func buttonListener() {
 			buttonReleaseTimestamp = time.Now().UTC().Unix()
 			diff := buttonReleaseTimestamp - buttonPressTimestamp
 			if diff < 2 {
-				if webcamLock == false {
-					webcamLock = true
-					go captureFromWebcam()
-				}
+        webcamLock.Lock()
+	      t := time.Now().UTC().Unix()
+        go captureFromWebcam(fmt.Sprintf("%d", t))
 			} else if diff >= 2 && diff <= 10 {
 				if captivePortalLock == false {
 					captivePortalLock = true
@@ -174,8 +173,8 @@ func rfidListener() {
     }
     log.Println(id)
     r.LedOff()
-    webcamLock = true
-    captureFromWebcam()
+    webcamLock.Lock()
+    captureFromWebcam(id)
     old_id = id
     r.Close()
   }
