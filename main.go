@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os/exec"
+  "os"
 	"time"
   "sync"
 
@@ -21,6 +22,8 @@ var imageDirectory = flag.String("image_directory", "images", "Image directory f
 
 func makeImage(device string, camera int, filename string, done chan bool) {
 	var err error
+  year, month, day := time.Now().Date()
+  filename = fmt.Sprintf("%s/%d-%02d-%02d/%s-%d.jpg", *imageDirectory, year, int(month), day, filename, camera)
 	cmd := exec.Command("/usr/bin/fswebcam",
 		"--device", device,
 		"-r", "4656x3496",
@@ -29,7 +32,7 @@ func makeImage(device string, camera int, filename string, done chan bool) {
 		"--set", "Sharpness=5",
 		"-D", "1",
 		"-S", "20",
-		fmt.Sprintf("%s/%s-%d.jpg", *imageDirectory, filename, camera))
+    filename)
 	fmt.Println("executing ", cmd)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -75,6 +78,12 @@ func makeImage(device string, camera int, filename string, done chan bool) {
 func captureFromWebcam(filename string) {
 	video0 := make(chan bool)
 	video2 := make(chan bool)
+  year, month, day := time.Now().Date()
+  err := os.MkdirAll(fmt.Sprintf("%s/%d-%02d-%02d", *imageDirectory, year, int(month), day), 0755)
+  if err != nil {
+    log.Println(err)
+    return
+  }
 	go makeImage("/dev/video0", 0, filename, video0)
 	go makeImage("/dev/video2", 1, filename, video2)
 	<-video0
